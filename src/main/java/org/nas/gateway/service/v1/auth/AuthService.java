@@ -59,6 +59,7 @@ public class AuthService {
     // 로그인 토큰 발급
     private Mono<AuthResponse> handleLogin(UserDetail user, String rawPassword) {
         if (matches(rawPassword, user.getUserPw())) {
+            log.info("matches success");
             String accessToken = jwtTokenProvider.generateAccessToken(user);
             String refreshToken = jwtTokenProvider.generateRefreshToken(user);
 
@@ -67,6 +68,7 @@ public class AuthService {
 
             return Mono.just(AuthResponse.getLoginSuccess(accessToken, refreshToken));
         }
+        log.info("matches fail");
         return Mono.just(AuthResponse.getLoginFail());
     }
 
