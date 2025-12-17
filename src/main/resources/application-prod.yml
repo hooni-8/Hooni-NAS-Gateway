@@ -72,13 +72,13 @@ spring:
 ###########################################################################
 ### Router data 설정
 ###########################################################################
-routers:
-  defaults:
-    admin-profile:
-      context: admin-profile
-      scheme: http
-      host: admin-api-profile-service.admin.svc
-      port: 80
+#routers:
+#  defaults:
+#    admin-profile:
+#      context: admin-profile
+#      scheme: http
+#      host: admin-api-profile-service.admin.svc
+#      port: 80
 
 ###########################################################################
 ### Jasypt 설정
