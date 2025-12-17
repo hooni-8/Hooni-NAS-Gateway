@@ -68,7 +68,7 @@ public class AuthController {
                             .sameSite("Strict")
                             .maxAge(60 * 60 * 24 * 7) // 7일 예시
                             .build();
-                    log.info(accessToken.toString());
+
                     return ResponseEntity.ok()
                             .header(HttpHeaders.SET_COOKIE, accessToken.toString())           // AccessToken Cookie에 저장
                             .body(AuthResponse.getSuccess());
