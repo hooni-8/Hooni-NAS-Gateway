@@ -3,15 +3,15 @@
 ###########################################################################
 application:
 
-  frontend:
-    scheme: http
-    host: admin.hooni.co.kr
-    port: 80
-  gateway: http://admin-gateway.hooni.co.kr
-
   cors:
     allowed-origin:
-    - http://admin.hooni.co.kr
+      - http://nas.hooni.co.kr
+
+  frontend:
+    scheme: http
+    host: nas.hooni.co.kr
+    port: 80
+  gateway: http://nas-gateway.hooni.co.kr
 
 ###########################################################################
 ### server 설정
