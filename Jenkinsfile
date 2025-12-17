@@ -8,14 +8,14 @@ pipeline {
    }
 
 	environment {
-		IMAGE_PATH = "admin"
-		REPLACE_NAME = "hooni-admin-gateway"
+		IMAGE_PATH = "nas"
+		REPLACE_NAME = "nas-gateway"
 		IMAGE_NAME = "${REPLACE_NAME}:v"
 		IMAGE_VERSION = "0.0.${BUILD_NUMBER}"
 
 		ARGOCD_GIT_URL = "github.com/hooni-8/argocd.git"
 		ARGOCD_GIT_BRANCH = "main"
-		ARGOCD_DEPLOY_YAML_FILE = "admin/admin-gateway/deployment.yaml"
+		ARGOCD_DEPLOY_YAML_FILE = "NAS/NAS-gateway/deployment.yaml"
 	}
 
 	stages {
