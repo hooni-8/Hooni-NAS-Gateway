@@ -1,9 +1,9 @@
 package org.nas.gateway.filters.jwt;
 
+import lombok.extern.slf4j.Slf4j;
 import org.nas.gateway.properties.AccessProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -18,12 +18,15 @@ import org.springframework.web.cors.reactive.CorsUtils;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
+import org.springframework.http.HttpCookie;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Optional;
 
+@Slf4j
 @Component
 public class CustomJwtAuthenticationFilter implements WebFilter {
 
@@ -59,8 +62,9 @@ public class CustomJwtAuthenticationFilter implements WebFilter {
     }
 
     private String extractToken(ServerHttpRequest request) {
-        String bearer = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        return (bearer != null && bearer.startsWith("Bearer ")) ? bearer.substring(7) : null;
+        return Optional.ofNullable(request.getCookies().getFirst("accessToken"))
+                .map(HttpCookie::getValue)
+                .orElse(null);
     }
 
     private Mono<Void> authenticateAndContinue(ServerWebExchange exchange, WebFilterChain chain, String token) {

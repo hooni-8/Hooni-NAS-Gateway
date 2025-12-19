@@ -75,7 +75,7 @@ spring:
 routers:
   defaults:
     nas-api:
-      context: nas-api
+      context: nas
       scheme: http
       host: nas-api-service.nas.svc
       port: 80

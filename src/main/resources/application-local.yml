@@ -72,8 +72,8 @@ spring:
 ###########################################################################
 routers:
   defaults:
-    template:
-      context: admin-profile
+    nas-api:
+      context: nas
       scheme: http
       host: localhost
       port: 8080
