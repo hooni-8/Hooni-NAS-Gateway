@@ -26,7 +26,5 @@ public class UserDetail {
 
     private String userName;
 
-    private String email;
-
     private String roleGroup;
 }

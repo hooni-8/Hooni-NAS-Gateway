@@ -37,7 +37,6 @@ public class AuthService {
                 .userCode(userCode)
                 .userId(registerRequest.getUserId())
                 .userPw(encodePassword(registerRequest.getUserPassword()))
-                .email(registerRequest.getUserEmail())
                 .userName(registerRequest.getUserName())
                 .build();
 
