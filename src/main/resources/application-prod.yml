@@ -5,13 +5,13 @@ application:
 
   cors:
     allowed-origin:
-      - http://nas.hooni.co.kr
+      - https://nas.hooni.co.kr
 
   frontend:
     scheme: http
     host: nas.hooni.co.kr
     port: 80
-  gateway: http://nas-gateway.hooni.co.kr
+  gateway: https://nas-gateway.hooni.co.kr
 
 ###########################################################################
 ### server 설정
