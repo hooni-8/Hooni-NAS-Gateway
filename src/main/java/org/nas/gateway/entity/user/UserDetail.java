@@ -11,7 +11,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @Data
 @ToString
 @Builder
-@Table(name= "tb_user")
+@Table(name= "NAS_USER")
 public class UserDetail {
 
     @Id
