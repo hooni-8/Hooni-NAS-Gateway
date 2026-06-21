@@ -63,6 +63,7 @@ spring:
     access:
       nologin:
         - /auth/**
+        - /nas/api/v1/file/video/**
 
 ###########################################################################
 ### Router data 설정
