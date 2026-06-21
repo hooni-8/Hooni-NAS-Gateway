@@ -20,8 +20,9 @@ public class JwtTokenProvider {
 
     private final SecretKey secretKey;
 
-    private static final long ACCESS_TOKEN_VALIDITY = 30 * 60 * 1000L;     // 30분
-    private static final long REFRESH_TOKEN_EXPIRE_TIME = 7 * 24 * 60 * 60 * 1000L; // 7일 (ms)
+    private static final long ACCESS_TOKEN_VALIDITY = 1000 * 60 * 15;
+    private static final long VIDEO_TOKEN_VALIDITY = 1000 * 60 * 60;
+    private static final long REFRESH_TOKEN_EXPIRE_TIME = 1000L * 60 * 60 * 24 * 7;
 
     private static final String ACCESS_SUBJECT = "accessToken";
     private static final String REFRESH_SUBJECT = "refreshToken";
@@ -37,6 +38,10 @@ public class JwtTokenProvider {
 
     public String generateRefreshToken(UserDetail user) {
         return createToken(user, REFRESH_TOKEN_EXPIRE_TIME, REFRESH_SUBJECT);
+    }
+
+    public String generateVideoToken(UserDetail user) {
+        return createToken(user, VIDEO_TOKEN_VALIDITY, ACCESS_SUBJECT);
     }
 
     private String createToken(UserDetail user, long duration, String subject) {

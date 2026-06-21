@@ -67,12 +67,8 @@ spring:
   security:
     access:
       nologin:
-        - /auth/login
-        - /auth/logout
-        - /auth/refresh
-        - /auth/register
-        - /auth/existsUserId
-        - /auth/session
+        - /auth/**
+        - /nas/api/v1/file/video/**
 
 ###########################################################################
 ### Router data 설정

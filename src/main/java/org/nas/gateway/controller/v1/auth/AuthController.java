@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
-import java.util.Objects;
+import java.time.Duration;
 
 @Slf4j
 @RestController
@@ -55,26 +55,36 @@ public class AuthController {
     public Mono<ResponseEntity<AuthResponse>> login(@RequestBody LoginRequest loginRequest) {
         return authService.login(loginRequest)
                 .map(authResponse -> {
-                    // 로그인 실패 판단 (code 값을 비교)
+
+                    // 로그인 실패
                     if (StatusCode.LOGIN_FAIL.getCode().equals(authResponse.getCode())) {
-                        return ResponseEntity.ok(authResponse); // 실패 응답 반환
+                        return ResponseEntity.ok(authResponse);
                     }
 
-                    // 로그인 성공: Access Token을 쿠키로 보냄
-                    ResponseCookie accessToken = ResponseCookie.from("accessToken", authResponse.getAccessToken())
+                    // Access Token Cookie
+                    ResponseCookie accessTokenCookie = ResponseCookie.from("accessToken", authResponse.getAccessToken())
+                            .httpOnly(true)
+                            .secure(false) // 운영이면 true (HTTPS)
+                            .path("/")
+                            .sameSite("Lax")
+                            .maxAge(Duration.ofMinutes(15))
+                            .build();
+
+                    // Refresh Token Cookie
+                    ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", authResponse.getRefreshToken())
                             .httpOnly(true)
                             .secure(false)
-                            .path("/")
-                            .sameSite("Strict")
-                            .maxAge(60 * 60 * 24 * 7) // 7일 예시
+                            .path("/auth/refresh")
+                            .sameSite("Lax")
+                            .maxAge(Duration.ofDays(7))
                             .build();
 
                     return ResponseEntity.ok()
-                            .header(HttpHeaders.SET_COOKIE, accessToken.toString())           // AccessToken Cookie에 저장
+                            .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
+                            .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
                             .body(AuthResponse.getSuccess());
                 })
                 .onErrorResume(e -> {
-                    // 오류 발생 시 오류 응답 반환
                     log.info("Login failed: {}", e.getMessage());
                     return Mono.just(ResponseEntity.ok(AuthResponse.getError()));
                 });
@@ -83,9 +93,11 @@ public class AuthController {
     // refresh 토큰
     @PostMapping("/refresh")
     public Mono<ResponseEntity<AuthResponse>> refreshAccessToken(ServerHttpRequest request) {
-        // Cookie에서 Refresh Token 읽기
-        String refreshToken = request.getCookies().getFirst("refreshToken") != null
-                ? Objects.requireNonNull(request.getCookies().getFirst("refreshToken")).getValue() : null;
+
+        String refreshToken = request.getCookies()
+                .getFirst("refreshToken") != null
+                ? request.getCookies().getFirst("refreshToken").getValue()
+                : null;
 
         if (refreshToken == null) {
             return Mono.just(ResponseEntity.ok(AuthResponse.getLoginFail()));
@@ -98,9 +110,21 @@ public class AuthController {
             return Mono.just(ResponseEntity.ok(AuthResponse.getLoginFail()));
         }
 
-        // 새 Access Token 발급
         return authService.refreshToken(userCode)
-                .map(ResponseEntity::ok)
+                .map(newAccessToken -> {
+
+                    ResponseCookie newAccessCookie = ResponseCookie.from("accessToken", newAccessToken.getAccessToken())
+                            .httpOnly(true)
+                            .secure(false)
+                            .path("/")
+                            .sameSite("Lax")
+                            .maxAge(Duration.ofMinutes(15))
+                            .build();
+
+                    return ResponseEntity.ok()
+                            .header(HttpHeaders.SET_COOKIE, newAccessCookie.toString())
+                            .body(newAccessToken);
+                })
                 .onErrorResume(e -> Mono.just(ResponseEntity.ok(AuthResponse.getError())));
     }
 
@@ -114,8 +138,6 @@ public class AuthController {
         }
 
         String token = accessToken.getValue();
-
-        log.info("token => {}", token);
 
         return authService.getSession(token)
                 .map(ResponseEntity::ok)
@@ -140,7 +162,7 @@ public class AuthController {
                 .httpOnly(true)
                 .secure(false)
                 .path("/")
-                .sameSite("Strict")
+                .sameSite("Lax")
                 .maxAge(0)     // 즉시 만료
                 .build();
 

@@ -69,15 +69,6 @@ public class AuthService {
         return Mono.just(AuthResponse.getLoginFail());
     }
 
-//    // refresh Token 발급
-//    public Mono<AuthResponse> refreshToken(RefreshAccessTokenRequest tokenRequest, String userCode) {
-//        return userDetailsFindByUserCode(userCode)
-//                .map(user -> {
-//                    String newAccessToken = jwtTokenProvider.generateAccessToken(user);
-//                    return AuthResponse.getLoginSuccess(newAccessToken, tokenRequest.getRefreshToken());
-//                });
-//    }
-
     // refresh Token 발급
     public Mono<AuthResponse> refreshToken(String userCode) {
         return userDetailsFindByUserCode(userCode)

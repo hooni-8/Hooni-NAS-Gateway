@@ -62,12 +62,7 @@ spring:
   security:
     access:
       nologin:
-        - /auth/login
-        - /auth/logout
-        - /auth/session
-        - /auth/refresh
-        - /auth/register
-        - /auth/existsUserId
+        - /auth/**
 
 ###########################################################################
 ### Router data 설정
