@@ -46,7 +46,7 @@ public class VideoController {
         String userCode = authService.getClaimsUserCode(token);
 
         return authService.userDetailsFindByUserCode(userCode)
-                .map(jwtTokenProvider::generateVideoToken)
+                .map(user -> jwtTokenProvider.generateVideoToken(user, fileId))
                 .map(videoToken ->
                         Map.of("url",
                                 "/nas/api/v1/file/video/" +

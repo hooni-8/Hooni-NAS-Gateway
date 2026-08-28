@@ -36,11 +36,11 @@ public class CustomJwtAuthenticationFilter implements WebFilter {
 
         String token = extractToken(exchange);
 
-        if (token != null && jwtTokenProvider.validateToken(token)) {
+        if (token != null && jwtTokenProvider.validateAccessToken(token)) {
 
             Authentication auth =
                     new UsernamePasswordAuthenticationToken(
-                            jwtTokenProvider.getAccessSubject(token),
+                            jwtTokenProvider.getAccessTokenUserCode(token),
                             token,
                             Collections.emptyList()
                     );

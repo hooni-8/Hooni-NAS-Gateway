@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.server.*;
+import org.nas.gateway.common.response.GatewayErrorResponse;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
@@ -26,9 +27,17 @@ public class GlobalErrorWebExceptionHandler extends AbstractErrorWebExceptionHan
     private Mono<ServerResponse> renderErrorResponse(ServerRequest request) {
 
         final Map<String, Object> errorPropertiesMap = getErrorAttributes(request, ErrorAttributeOptions.defaults());
+        Object status = errorPropertiesMap.get("status");
+        int statusCode = status instanceof Number number
+                ? number.intValue()
+                : HttpStatus.INTERNAL_SERVER_ERROR.value();
 
-        return ServerResponse.status(HttpStatus.BAD_REQUEST)
+        String message = errorPropertiesMap.get("message") instanceof String errorMessage
+                ? errorMessage
+                : "ERROR";
+
+        return ServerResponse.status(statusCode)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(BodyInserters.fromValue(errorPropertiesMap));
+                .body(BodyInserters.fromValue(GatewayErrorResponse.of(message)));
     }
 }

@@ -13,6 +13,9 @@ application:
     port: 80
   gateway: https://nas-gateway.hooni.co.kr
 
+  cookie:
+    secure: true
+
 ###########################################################################
 ### server 설정
 ###########################################################################
@@ -62,7 +65,9 @@ spring:
   security:
     access:
       nologin:
-        - /auth/**
+        - /auth/login
+        - /auth/logout
+        - /auth/refresh
         - /nas/api/v1/file/video/**
 
 ###########################################################################

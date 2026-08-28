@@ -23,11 +23,19 @@ public class GlobalErrorAttributes extends DefaultErrorAttributes {
         MergedAnnotation<ResponseStatus> responseStatusAnnotation = MergedAnnotations
                 .from(error.getClass(), MergedAnnotations.SearchStrategy.TYPE_HIERARCHY).get(ResponseStatus.class);
         HttpStatusCode httpStatusCode = findHttpStatus(error, responseStatusAnnotation);
+        HttpStatus httpStatus = HttpStatus.resolve(httpStatusCode.value());
 
-        map.put("exception", error.getClass().getSimpleName());
-        map.put("message", error.getMessage());
-        map.put("status", httpStatusCode);
-        map.put("error", HttpStatus.valueOf(httpStatusCode.value()));
+        // 예외 클래스명·내부 메시지·스택 트레이스는 외부 응답으로 내보내지 않는다.
+        map.remove("exception");
+        map.remove("trace");
+        map.put("status", httpStatusCode.value());
+        map.put("error", httpStatus != null ? httpStatus.getReasonPhrase() : "Error");
+        map.put(
+                "message",
+                httpStatusCode.is5xxServerError()
+                        ? "Internal server error"
+                        : (httpStatus != null ? httpStatus.getReasonPhrase() : "Request failed")
+        );
 
         return map;
     }

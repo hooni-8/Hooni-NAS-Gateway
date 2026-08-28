@@ -102,7 +102,11 @@ public class AuthService {
     }
 
     public String getClaimsUserCode(String token) {
-        return jwtTokenProvider.getClaimsUserCode(token);
+        return jwtTokenProvider.getAccessTokenUserCode(token);
+    }
+
+    public String getRefreshTokenUserCode(String token) {
+        return jwtTokenProvider.getRefreshTokenUserCode(token);
     }
 
 }

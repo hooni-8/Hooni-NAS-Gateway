@@ -9,6 +9,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DataBufferUtils;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpResponse;
@@ -21,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @Component
+@ConditionalOnProperty(prefix = "application.response-wrapper", name = "enabled", havingValue = "true")
 public class GlobalResponseWrapperFilter implements GlobalFilter, Ordered {
 
     private static final String SUCCESS_CODE = "0000";

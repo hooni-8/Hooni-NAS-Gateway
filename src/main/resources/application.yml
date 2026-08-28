@@ -3,6 +3,10 @@
 ###########################################################################
 application:
 
+  response-wrapper:
+    # API가 공통 응답 형식을 만들므로 Gateway에서 다시 감싸지 않는다.
+    enabled: false
+
   cors:
     allowed-origin:
     - http://localhost:3000
@@ -12,6 +16,9 @@ application:
     host: loaclhost
     port: 3000
   gateway: http://localhost:9090
+
+  cookie:
+    secure: false
 
 ###########################################################################
 ### server 설정
@@ -63,8 +70,7 @@ spring:
         - /auth/login
         - /auth/logout
         - /auth/refresh
-        - /auth/register
-        - /auth/existsUserId
+        - /nas/api/v1/file/video/**
 
 ###########################################################################
 ### Router data 설정
@@ -89,3 +95,4 @@ jasypt:
 ###########################################################################
 jwt:
   secretkey: ENC(fkLWNwMEhnest9nhBCWy4uxCHDBLzKRzyzuLOwTnicJrEpH3ZlRImo2/6ILWwq6lQWS9CQzfutcCWIjJcKaZG/r/qDqY578FMythF1hx5oV9vZCfYmKeppOU49+dOjP5)
+  video-token-validity: 12h

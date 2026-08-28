@@ -19,15 +19,17 @@ import java.util.Date;
 public class JwtTokenProvider {
 
     private final SecretKey secretKey;
+    private final JwtProperties jwtProperties;
 
     private static final long ACCESS_TOKEN_VALIDITY = 1000 * 60 * 15;
-    private static final long VIDEO_TOKEN_VALIDITY = 1000 * 60 * 60;
     private static final long REFRESH_TOKEN_EXPIRE_TIME = 1000L * 60 * 60 * 24 * 7;
 
     private static final String ACCESS_SUBJECT = "accessToken";
     private static final String REFRESH_SUBJECT = "refreshToken";
+    private static final String VIDEO_SUBJECT = "videoToken";
 
     public JwtTokenProvider(JwtProperties jwtProperties) {
+        this.jwtProperties = jwtProperties;
         byte[] keyBytes = Decoders.BASE64.decode(jwtProperties.getSecretKey());
         this.secretKey = Keys.hmacShaKeyFor(keyBytes);
     }
@@ -40,8 +42,15 @@ public class JwtTokenProvider {
         return createToken(user, REFRESH_TOKEN_EXPIRE_TIME, REFRESH_SUBJECT);
     }
 
-    public String generateVideoToken(UserDetail user) {
-        return createToken(user, VIDEO_TOKEN_VALIDITY, ACCESS_SUBJECT);
+    public String generateVideoToken(UserDetail user, String fileId) {
+        return Jwts.builder()
+                .subject(VIDEO_SUBJECT)
+                .claim("userCode", user.getUserCode())
+                .claim("fileId", fileId)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + jwtProperties.getVideoTokenValidity().toMillis()))
+                .signWith(secretKey)
+                .compact();
     }
 
     private String createToken(UserDetail user, long duration, String subject) {
@@ -58,12 +67,7 @@ public class JwtTokenProvider {
 
     public Mono<LoginStatus> getClaims(String token) {
         return Mono.fromCallable(() -> {
-
-            Claims claims = Jwts.parser()
-                    .verifyWith(secretKey)
-                    .build()
-                    .parseSignedClaims(token) // ✔ 서명 + exp 검증 여기서 끝
-                    .getPayload();
+            Claims claims = parseClaimsForSubject(token, ACCESS_SUBJECT);
 
             return LoginStatus.getSuccess(
                     claims.get("userCode", String.class),
@@ -78,12 +82,9 @@ public class JwtTokenProvider {
         CustomJwtAuthenticationFilter 에서 사용
     ======================================== */
 
-    public boolean validateToken(String token) {
+    public boolean validateAccessToken(String token) {
         try {
-            Jwts.parser()
-                    .verifyWith(secretKey)
-                    .build()
-                    .parseSignedClaims(token);
+            parseClaimsForSubject(token, ACCESS_SUBJECT);
             return true;
 
         /**
@@ -141,22 +142,29 @@ public class JwtTokenProvider {
         보조 메서드 (선택)
    ========================= */
 
-    public String getAccessSubject(String token) {
-        return Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload()
-                .getSubject();
+    public String getAccessTokenUserCode(String token) {
+        return getUserCodeForSubject(token, ACCESS_SUBJECT);
     }
 
-    public String getClaimsUserCode(String token) {
+    public String getRefreshTokenUserCode(String token) {
+        return getUserCodeForSubject(token, REFRESH_SUBJECT);
+    }
+
+    private String getUserCodeForSubject(String token, String expectedSubject) {
+        return parseClaimsForSubject(token, expectedSubject).get("userCode", String.class);
+    }
+
+    private Claims parseClaimsForSubject(String token, String expectedSubject) {
         Claims claims = Jwts.parser()
                 .verifyWith(secretKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
 
-        return claims.get("userCode", String.class);
+        if (!expectedSubject.equals(claims.getSubject())) {
+            throw new JwtException("Unexpected token subject");
+        }
+
+        return claims;
     }
 }

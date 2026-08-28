@@ -5,17 +5,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.nas.gateway.common.code.StatusCode;
 import org.nas.gateway.common.model.LoginStatus;
 import org.nas.gateway.model.v1.auth.request.LoginRequest;
-import org.nas.gateway.model.v1.auth.request.RegisterExistsId;
-import org.nas.gateway.model.v1.auth.request.RegisterRequest;
 import org.nas.gateway.model.v1.auth.response.AuthResponse;
 import org.nas.gateway.model.v1.common.response.CommonResponse;
 import org.nas.gateway.service.v1.auth.AuthService;
 import org.nas.gateway.service.v1.auth.RefreshTokenService;
 import org.springframework.http.HttpCookie;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,21 +34,8 @@ public class AuthController {
 
     private final RefreshTokenService refreshTokenService;
 
-    // 회원가입
-    @PostMapping("/register")
-    public Mono<CommonResponse> register(@RequestBody RegisterRequest registerRequest) {
-        log.info("Register: {}", registerRequest);
-
-        return authService.register(registerRequest)
-                .thenReturn(CommonResponse.getSuccess())
-                .onErrorReturn(CommonResponse.getError());
-    }
-
-    // 아이디 중복 확인
-    @PostMapping("/existsUserId")
-    public Mono<Boolean> existsUserId(@RequestBody RegisterExistsId registerExistsId) {
-        return authService.existsUserId(registerExistsId.getUserId());
-    }
+    @Value("${application.cookie.secure:false}")
+    private boolean secureCookie;
 
     // 로그인
     @PostMapping("/login")
@@ -64,7 +51,7 @@ public class AuthController {
                     // Access Token Cookie
                     ResponseCookie accessTokenCookie = ResponseCookie.from("accessToken", authResponse.getAccessToken())
                             .httpOnly(true)
-                            .secure(false) // 운영이면 true (HTTPS)
+                            .secure(secureCookie)
                             .path("/")
                             .sameSite("Lax")
                             .maxAge(Duration.ofMinutes(15))
@@ -73,7 +60,7 @@ public class AuthController {
                     // Refresh Token Cookie
                     ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", authResponse.getRefreshToken())
                             .httpOnly(true)
-                            .secure(false)
+                            .secure(secureCookie)
                             .path("/auth/refresh")
                             .sameSite("Lax")
                             .maxAge(Duration.ofDays(7))
@@ -100,14 +87,20 @@ public class AuthController {
                 : null;
 
         if (refreshToken == null) {
-            return Mono.just(ResponseEntity.ok(AuthResponse.getLoginFail()));
+            return Mono.just(refreshUnauthorizedResponse());
         }
 
-        String userCode = authService.getClaimsUserCode(refreshToken);
+        String userCode;
+        try {
+            userCode = authService.getRefreshTokenUserCode(refreshToken);
+        } catch (Exception e) {
+            return Mono.just(refreshUnauthorizedResponse());
+        }
+
         String storedToken = refreshTokenService.getRefreshToken(userCode);
 
         if (storedToken == null || !storedToken.equals(refreshToken)) {
-            return Mono.just(ResponseEntity.ok(AuthResponse.getLoginFail()));
+            return Mono.just(refreshUnauthorizedResponse());
         }
 
         return authService.refreshToken(userCode)
@@ -115,7 +108,7 @@ public class AuthController {
 
                     ResponseCookie newAccessCookie = ResponseCookie.from("accessToken", newAccessToken.getAccessToken())
                             .httpOnly(true)
-                            .secure(false)
+                            .secure(secureCookie)
                             .path("/")
                             .sameSite("Lax")
                             .maxAge(Duration.ofMinutes(15))
@@ -123,9 +116,11 @@ public class AuthController {
 
                     return ResponseEntity.ok()
                             .header(HttpHeaders.SET_COOKIE, newAccessCookie.toString())
-                            .body(newAccessToken);
+                            // access token은 HttpOnly 쿠키로만 전달한다.
+                            .body(AuthResponse.getSuccess());
                 })
-                .onErrorResume(e -> Mono.just(ResponseEntity.ok(AuthResponse.getError())));
+                .switchIfEmpty(Mono.just(refreshUnauthorizedResponse()))
+                .onErrorResume(e -> Mono.just(refreshUnauthorizedResponse()));
     }
 
     @PostMapping("/session")
@@ -134,7 +129,7 @@ public class AuthController {
         HttpCookie accessToken = request.getCookies().getFirst("accessToken");
 
         if (accessToken == null) {
-            return Mono.just(ResponseEntity.ok(LoginStatus.getError()));
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(LoginStatus.getError()));
         }
 
         String token = accessToken.getValue();
@@ -142,8 +137,13 @@ public class AuthController {
         return authService.getSession(token)
                 .map(ResponseEntity::ok)
                 .onErrorResume(e ->
-                        Mono.just(ResponseEntity.ok(LoginStatus.getError()))
+                        Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(LoginStatus.getError()))
                 );
+    }
+
+    private ResponseEntity<AuthResponse> refreshUnauthorizedResponse() {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(AuthResponse.getLoginFail());
     }
 
     // 로그아웃
@@ -151,27 +151,68 @@ public class AuthController {
     public Mono<ResponseEntity<Void>> logout(ServerHttpRequest request) {
 
         HttpCookie accessToken = request.getCookies().getFirst("accessToken");
+        HttpCookie refreshToken = request.getCookies().getFirst("refreshToken");
 
-        if (accessToken != null) {
-            String token = accessToken.getValue();
-            String userCode = authService.getClaimsUserCode(token);
-            refreshTokenService.deleteRefreshToken(userCode);
+        // access token이 만료됐어도 브라우저 쿠키는 반드시 지워야 한다.
+        // refresh token을 우선 사용해 Redis의 세션을 폐기하고, 실패해도 로그아웃 응답은 계속한다.
+        String userCode = extractRefreshTokenUserCode(refreshToken);
+        if (userCode == null) {
+            userCode = extractAccessTokenUserCode(accessToken);
+        }
+
+        if (userCode != null) {
+            try {
+                refreshTokenService.deleteRefreshToken(userCode);
+            } catch (Exception e) {
+                log.warn("Failed to revoke refresh token during logout");
+            }
         }
 
         ResponseCookie deleteAccessToken = ResponseCookie.from("accessToken", "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(secureCookie)
                 .path("/")
                 .sameSite("Lax")
                 .maxAge(0)     // 즉시 만료
                 .build();
 
-        return Mono.just(
-                ResponseEntity.ok()
-                        .header(HttpHeaders.SET_COOKIE, deleteAccessToken.toString())
-                        .build()
-        );
+        ResponseCookie deleteRefreshToken = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(secureCookie)
+                .path("/auth/refresh")
+                .sameSite("Lax")
+                .maxAge(0)
+                .build();
 
+        return Mono.just(ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, deleteAccessToken.toString())
+                .header(HttpHeaders.SET_COOKIE, deleteRefreshToken.toString())
+                .build());
+
+    }
+
+    private String extractRefreshTokenUserCode(HttpCookie tokenCookie) {
+        if (tokenCookie == null || tokenCookie.getValue().isBlank()) {
+            return null;
+        }
+
+        try {
+            return authService.getRefreshTokenUserCode(tokenCookie.getValue());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String extractAccessTokenUserCode(HttpCookie tokenCookie) {
+        if (tokenCookie == null || tokenCookie.getValue().isBlank()) {
+            return null;
+        }
+
+        try {
+            return authService.getClaimsUserCode(tokenCookie.getValue());
+        } catch (Exception e) {
+            return null;
+        }
     }
 
 }

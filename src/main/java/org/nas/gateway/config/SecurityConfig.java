@@ -2,6 +2,7 @@ package org.nas.gateway.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.nas.gateway.filters.jwt.CustomJwtAuthenticationFilter;
+import org.nas.gateway.filters.jwt.JwtAccessDeniedHandler;
 import org.nas.gateway.filters.jwt.JwtAuthenticationEntryPoint;
 import org.nas.gateway.properties.AccessProperties;
 import org.nas.gateway.properties.CorsProperties;
@@ -34,6 +35,9 @@ public class SecurityConfig {
     private JwtAuthenticationEntryPoint entryPoint;
 
     @Autowired
+    private JwtAccessDeniedHandler accessDeniedHandler;
+
+    @Autowired
     private AccessProperties accessProperties;
 
     @Autowired
@@ -53,6 +57,7 @@ public class SecurityConfig {
 
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(entryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
                 )
 
                 .securityContextRepository(

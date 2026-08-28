@@ -67,7 +67,9 @@ spring:
   security:
     access:
       nologin:
-        - /auth/**
+        - /auth/login
+        - /auth/logout
+        - /auth/refresh
         - /nas/api/v1/file/video/**
 
 ###########################################################################
@@ -79,7 +81,7 @@ routers:
       context: nas
       scheme: http
       host: localhost
-      port: 8080
+      port: 8081
 
 ###########################################################################
 ### Jasypt 설정
