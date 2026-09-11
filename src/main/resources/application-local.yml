@@ -9,7 +9,7 @@ application:
 
   frontend:
     scheme: http
-    host: loaclhost
+    host: localhost
     port: 3000
   gateway: http://localhost:9090
 
@@ -81,7 +81,8 @@ routers:
       context: nas
       scheme: http
       host: localhost
-      port: 8081
+      # API는 별도 server.port가 없으므로 Spring Boot 기본 포트(8080)로 실행된다.
+      port: 8080
 
 ###########################################################################
 ### Jasypt 설정
