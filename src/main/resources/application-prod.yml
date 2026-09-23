@@ -1,0 +1,35 @@
+###########################################################################
+### server 설정
+###########################################################################
+server:
+  port: 8080
+
+###########################################################################
+### Application 설정
+###########################################################################
+application:
+  cors:
+    allowed-origin:
+      # Gateway와 Auth API에 동일한 실제 Front Origin을 주입한다.
+      - ${APPLICATION_CORS_ALLOWED_ORIGIN}
+  proxy:
+    # 운영에서는 실제 Ingress Controller IP/CIDR을 반드시 주입한다.
+    trusted-addresses: ${APPLICATION_PROXY_TRUSTED_ADDRESSES}
+###########################################################################
+### Router data 설정
+###########################################################################
+routers:
+  defaults:
+    auth-api:
+      context: auth
+      scheme: http
+      host: auth-api-service.auth.svc
+      port: 80
+    nas-api:
+      context: nas
+      scheme: http
+      host: nas-api-service.nas.svc
+      port: 80
+
+jwt:
+  jwk-set-uri: http://auth-api-service.auth.svc/oauth2/jwks

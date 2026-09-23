@@ -1,0 +1,121 @@
+###########################################################################
+### Application 설정
+###########################################################################
+application:
+  cors:
+    allowed-origin:
+      - http://localhost:3000
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+      - OPTIONS
+    allowed-headers:
+      - Accept
+      - Authorization
+      - Content-Type
+      - X-Request-ID
+    exposed-headers:
+      - Content-Disposition
+      - X-Request-ID
+  proxy:
+    # 운영 환경에서 실제 Ingress/Reverse Proxy의 IP 또는 CIDR만 등록한다.
+    # 비어 있으면 X-Forwarded-For를 신뢰하지 않고 직접 연결 주소를 사용한다.
+    # 환경 변수 예: APPLICATION_PROXY_TRUSTED_ADDRESSES=10.0.0.0/8,192.168.0.0/16
+    trusted-addresses: []
+  security:
+    # 요청 본문에 허용할 최대 크기. 길이를 모르는 Chunked 본문도 같은 제한을 적용한다.
+    max-request-size: 2MB
+    access-token-cookie-name: accessToken
+    refresh-token-cookie-name: refreshToken
+    # Gateway 인증을 생략할 경로는 HTTP Method와 함께 선언한다.
+    # permitAll이어도 실제 요청 검증 책임은 라우팅 대상 Auth API에 남아 있다.
+    public-endpoints:
+      - method: POST
+        path: /auth/login
+      - method: POST
+        path: /auth/register
+      - method: POST
+        path: /auth/register/exists
+      - method: POST
+        path: /auth/refresh
+      - method: POST
+        path: /auth/logout
+      - method: POST
+        path: /auth/session
+      - method: GET
+        path: /actuator/health
+      - method: GET
+        path: /actuator/health/liveness
+      - method: GET
+        path: /actuator/health/readiness
+
+###########################################################################
+### server 설정
+###########################################################################
+server:
+  port: 9090
+  shutdown: graceful
+  error:
+    whitelabel:
+      enabled: false
+
+###########################################################################
+### Spring 설정
+###########################################################################
+spring:
+  application:
+    name: hooni-nas-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 3000
+            response-timeout: 10s
+          filter:
+            retry:
+              enabled: false
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+###########################################################################
+### Router data 설정
+###########################################################################
+routers:
+  defaults:
+    auth-api:
+      context: auth
+      scheme: http
+      host: localhost
+      port: 8081
+      # 로그인/갱신/로그아웃 처리를 위해 Auth API에만 브라우저 쿠키를 전달한다.
+      forward-cookies: true
+    nas-api:
+      context: nas
+      scheme: http
+      host: localhost
+      port: 8080
+
+
+###########################################################################
+### jwt 설정
+###########################################################################
+jwt:
+  issuer: hooni-template-auth
+  audience: hooni-template-api
+  algorithm: RS256
+  # Auth API 내부 주소를 사용해 Gateway 인증과 공개키 조회 사이의 순환을 피한다.
+  jwk-set-uri: http://localhost:8081/oauth2/jwks
