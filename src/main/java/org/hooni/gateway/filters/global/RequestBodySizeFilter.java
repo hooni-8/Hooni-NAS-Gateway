@@ -8,6 +8,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
@@ -23,15 +24,22 @@ import java.io.ByteArrayOutputStream;
 /**
  * Content-Length 요청은 즉시 검사하고 길이를 알 수 없는 chunked 요청은 제한 크기까지만 버퍼링한다.
  * 크기를 초과한 본문은 하위 서비스에 일부라도 전달하기 전에 일관된 413 JSON으로 종료한다.
+ * 대용량 파일 업로드는 하위 NAS API가 제한을 관리하므로 본문을 버퍼링하지 않고 그대로 전달한다.
  */
 @Component
 @RequiredArgsConstructor
 public class RequestBodySizeFilter implements WebFilter, Ordered {
+    private static final String UPLOAD_PATH = "/nas/api/v1/upload/progress";
+
     private final AccessProperties accessProperties;
     private final GatewayErrorResponseWriter errorResponseWriter;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        if (isUploadRequest(exchange.getRequest())) {
+            return chain.filter(exchange);
+        }
+
         long maxBytes = accessProperties.getMaxRequestSize().toBytes();
         long contentLength = exchange.getRequest().getHeaders().getContentLength();
 
@@ -61,6 +69,11 @@ public class RequestBodySizeFilter implements WebFilter, Ordered {
                     return chain.filter(withBufferedBody(exchange, accumulator.toByteArray()));
                 }))
                 .onErrorResume(RequestBodyTooLargeException.class, ignored -> payloadTooLarge(exchange));
+    }
+
+    private boolean isUploadRequest(ServerHttpRequest request) {
+        return request.getMethod() == HttpMethod.POST
+                && UPLOAD_PATH.equals(request.getURI().getPath());
     }
 
     private ServerWebExchange withBufferedBody(ServerWebExchange exchange, byte[] body) {
